@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<mavlink>
+  <version>3</version>
+  <enums>
+    <enum name="MAV_ENC_TYPE">
+        <entry value="0" name="MAV_ENC_NONE">
+            <description>No encryption used</description>
+        </entry>
+        <entry value="1" name="MAV_ENC_AES_CBC">
+            <description>Use AES CBC encryption</description>
+        </entry>
+        <entry value="2" name="MAV_ENC_AES_CTR">
+            <description>Use AES CTR encryption</description>
+        </entry>
+        <entry value="3" name="MAV_ENC_RC4">
+            <description>Use RC4 encryption</description>
+        </entry>
+        <entry value="4" name="MAV_ENC_CHACHA20">
+            <description>Use ChaCha20 encryption</description>
+        </entry>
+        <entry value="5" name="MAV_ENC_TWOFISH">
+            <description>Use TWOFISH encryption</description>
+        </entry>
+        <entry value="6" name="MAV_ENC_PRESENT">
+            <description>Use PRESENT encryption</description>
+        </entry>
+        <entry value="7" name="MAV_ENC_TWINE">
+            <description>Use TWINE encryption</description>
+        </entry>
+    </enum>
+    <enum name="ENCRYPTION_ACK_TYPE">
+        <entry value="0" name="ENCRYTION_ACCEPTED">
+            <description>Encryption key have been verify and accepted</description>
+        </entry>
+        <entry value="1" name="ENCRYPTION_DENIED">
+            <description>Encryption key verfiy failed and rejected</description>
+        </entry>
+        <entry value="2" name="ENCRYPTION_NOT_SUPPORT">
+            <description>None of the encryption method is support</description>
+        </entry>
+    </enum>
+  </enums>
+  <messages>
+    <message id="1001" name="ENCRYPTION_AVLIABLE_LIST">
+        <description>Response of all support encryption methods</description>
+        <field type="uint8_t" name="len_sup_enc">Len of support encryption methods</field>
+        <field type="uint8_t[10]" name="sup_enc">List of support encryption methods</field>
+    </message>
+    <message id="1002" name="ENCRYPTION_DECISION">
+        <description>Decide which encryption method to be used</description>
+        <field type="uint8_t" name="enc_method">The selected encryption method</field>
+        <field type="uint8_t" name="len_enc_key">The length of the encryption key</field>
+        <field type="uint8_t[32]" name="enc_key">The encryption key</field>
+    </message>
+    <message id="1003" name="ENCRYPTION_ACK">
+        <description>ACK for the previous packet</description>
+        <field type="uint8_t" name="target_system">System ID</field>
+        <field type="uint8_t" name="target_component">Component ID</field>
+        <field type="uint8_t" name="type" enum="ENCRYPTION_ACK_TYPE">ACK type</field>
+    </message>
+
+
+  </messages>
+
+</mavlink>
