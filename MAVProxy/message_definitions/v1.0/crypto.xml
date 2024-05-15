@@ -48,15 +48,21 @@
     </message>
     <message id="1002" name="ENCRYPTION_DECISION">
         <description>Decide which encryption method to be used</description>
-        <field type="uint8_t" name="enc_method">The selected encryption method</field>
+        <field type="uint8_t" name="enc_method" enum="MAV_ENC_TYPE">The selected encryption method</field>
         <field type="uint8_t" name="len_enc_key">The length of the encryption key</field>
-        <field type="uint8_t[32]" name="enc_key">The encryption key</field>
+        <field type="uint8_t[256]" name="enc_key">The encryption key</field>
     </message>
     <message id="1003" name="ENCRYPTION_ACK">
         <description>ACK for the previous packet</description>
         <field type="uint8_t" name="target_system">System ID</field>
         <field type="uint8_t" name="target_component">Component ID</field>
         <field type="uint8_t" name="type" enum="ENCRYPTION_ACK_TYPE">ACK type</field>
+    </message>
+    <message id="1004" name="IDENTITY_VERIFY">
+        <description>Verify sender identity</description>
+        <field type="uint8_t" name="len_id">Length of the ID</field>
+        <field type="uint8_t[32]" name="id">Sender ID</field>
+        <field type="uint8_t[256]" name="enc_data">Encrypted sender identity</field>
     </message>
 
 
