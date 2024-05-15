@@ -20866,20 +20866,45 @@ class MAVLink(object):
         self.signing.timestamp = max(self.signing.timestamp, timestamp)
         return True
 
+    def _decrypt_payload(self, payload: Union[bytes, bytearray], method: int, key: Union[bytes, bytearray],
+                         iv: Optional[bytes] = None):
+        if method == MAVLINK_ENCRYPTION_AES_CBC:
+            return aes_decrypt_cbc(payload, key, iv)
+        elif method == MAVLINK_ENCRYPTION_AES_CTR:
+            return aes_decrypt_ctr(payload, key, iv)
+        elif method == MAVLINK_ENCRYPTION_RC4:
+            return rc4_decrypt(payload, key)
+        elif method == MAVLINK_ENCRYPTION_CHACHA20:
+            return chacha20_decrypt(payload, key, iv)
+        elif method == MAVLINK_ENCRYPTION_TWOFISH:
+            return twofish_decrypt(payload, key)
+        elif method == MAVLINK_ENCRYPTION_PRESENT:
+            return present_decrypt(payload, key)
+        elif method == MAVLINK_ENCRYPTION_TWINE:
+            return twine_decrypt(payload, key)
+        else:
+            raise ValueError("Unsupported encryption method")
+
     def decode(self, msgbuf: bytearray) -> MAVLink_message:
         """decode a buffer as a MAVLink message"""
+        nonce = None
         # decode the header
         if msgbuf[0] != PROTOCOL_MARKER_V1:
-            headerlen = 10
+            headerlen = 11
             try:
-                magic, mlen, incompat_flags, compat_flags, seq, srcSystem, srcComponent, msgIdlow, msgIdhigh = cast(
-                    Tuple[bytes, int, int, int, int, int, int, int, int],
+                magic, mlen, incompat_flags, compat_flags, seq, srcSystem, srcComponent, msgIdlow, msgIdhigh, nonce_len = cast(
+                    Tuple[bytes, int, int, int, int, int, int, int, int, int],
                     self.mav20_unpacker.unpack(msgbuf[:headerlen]),
                 )
             except struct.error as emsg:
                 raise MAVError("Unable to unpack MAVLink header: %s" % emsg)
             msgId = msgIdlow | (msgIdhigh << 16)
             mapkey = msgId
+
+            # read the key if there is any
+            if nonce_len > 0:
+                nonce = msgbuf[headerlen: headerlen + nonce_len]
+                headerlen += nonce_len
         else:
             headerlen = 6
             try:
@@ -20900,7 +20925,8 @@ class MAVLink(object):
         if ord(magic) != PROTOCOL_MARKER_V1 and ord(magic) != PROTOCOL_MARKER_V2:
             raise MAVError("invalid MAVLink prefix '{}'".format(hex(ord(magic))))
         if mlen != len(msgbuf) - (headerlen + 2 + signature_len):
-            raise MAVError("invalid MAVLink message length. Got %u expected %u, msgId=%u headerlen=%u" % (len(msgbuf) - (headerlen + 2 + signature_len), mlen, msgId, headerlen))
+            raise MAVError("invalid MAVLink message length. Got %u expected %u, msgId=%u headerlen=%u" % (
+                len(msgbuf) - (headerlen + 2 + signature_len), mlen, msgId, headerlen))
 
         if mapkey not in mavlink_map:
             return MAVLink_unknown(msgId, msgbuf)
@@ -20915,11 +20941,11 @@ class MAVLink(object):
         try:
             (crc,) = cast(
                 Tuple[int],
-                self.mav_csum_unpacker.unpack(msgbuf[-(2 + signature_len) :][:2]),
+                self.mav_csum_unpacker.unpack(msgbuf[-(2 + signature_len):][:2]),
             )
         except struct.error as emsg:
             raise MAVError("Unable to unpack MAVLink CRC: %s" % emsg)
-        crcbuf = msgbuf[1 : -(2 + signature_len)]
+        crcbuf = msgbuf[1: -(2 + signature_len)]
         if True:
             # using CRC extra
             crcbuf.append(crc_extra)
@@ -20955,7 +20981,21 @@ class MAVLink(object):
                 raise MAVError("Invalid signature")
 
         csize = msgtype.unpacker.size
-        mbuf = msgbuf[headerlen : -(2 + signature_len)]
+        mbuf = msgbuf[headerlen: -(2 + signature_len)]
+
+        # Special process for encryption information. Which needed to be decrypted first.
+        if msgId == MAVLINK_MSG_ID_ENCRYPTION_INFORMATION:
+            if self.rsa_key_private is None:
+                raise MAVError("Unable to decrypt encryption information. No private key provided.")
+            cipher_rsa = PKCS1_OAEP.new(self.rsa_key_private)
+            mbuf = cipher_rsa.decrypt(mbuf)
+        elif self.payload_encryption_method != MAVLINK_ENCRYPTION_NONE:
+            if self.payload_encryption_key is None:
+                raise MAVError("Unable to decrypt payload. No encryption key provided.")
+            elif self.payload_encryption_method in NONCE_ENCRYPTION and nonce is None:
+                raise MAVError("Unable to decrypt payload. No nonce provided.")
+            mbuf = self._decrypt_payload(mbuf, self.payload_encryption_method, self.payload_encryption_key,
+                                         nonce)
         if len(mbuf) < csize:
             # zero pad to give right size
             mbuf.extend([0] * (csize - len(mbuf)))
@@ -20988,7 +21028,7 @@ class MAVLink(object):
                     if L == 1 or isinstance(field, bytes):
                         tlist.append(field)
                     else:
-                        tlist.append(cast(Union[Sequence[int], Sequence[float]], list(t[tip : (tip + L)])))
+                        tlist.append(cast(Union[Sequence[int], Sequence[float]], list(t[tip: (tip + L)])))
 
         # terminate any strings
         for i, elem in enumerate(tlist):
@@ -21006,10 +21046,11 @@ class MAVLink(object):
         if m._signed:
             m._link_id = msgbuf[-13]
         m._msgbuf = msgbuf
-        m._payload = msgbuf[6 : -(2 + signature_len)]
+        m._payload = msgbuf[6: -(2 + signature_len)]
         m._crc = crc
         m._header = MAVLink_header(msgId, incompat_flags, compat_flags, mlen, seq, srcSystem, srcComponent)
         return m
+
 
     def sensor_offsets_encode(self, mag_ofs_x: int, mag_ofs_y: int, mag_ofs_z: int, mag_declination: float, raw_press: int, raw_temp: int, gyro_cal_x: float, gyro_cal_y: float, gyro_cal_z: float, accel_cal_x: float, accel_cal_y: float, accel_cal_z: float) -> MAVLink_sensor_offsets_message:
         """
