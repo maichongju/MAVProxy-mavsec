@@ -29,19 +29,19 @@
         </entry>
     </enum>
     <enum name="ENCRYPTION_ACK_TYPE">
-        <entry value="0" name="ENCRYTION_ACCEPTED">
+        <entry value="1" name="ENCRYTION_ACCEPTED">
             <description>Encryption key have been verify and accepted</description>
         </entry>
-        <entry value="1" name="ENCRYPTION_DENIED">
+        <entry value="2" name="ENCRYPTION_DENIED">
             <description>Encryption key verfiy failed and rejected</description>
         </entry>
-        <entry value="2" name="ENCRYPTION_NOT_SUPPORT">
+        <entry value="3" name="ENCRYPTION_NOT_SUPPORT">
             <description>None of the encryption method is support</description>
         </entry>
     </enum>
   </enums>
   <messages>
-    <message id="1001" name="ENCRYPTION_AVLIABLE_LIST">
+    <message id="1001" name="ENCRYPTION_AVAILABLE_LIST">
         <description>Response of all support encryption methods</description>
         <field type="uint8_t" name="len_sup_enc">Len of support encryption methods</field>
         <field type="uint8_t[10]" name="sup_enc">List of support encryption methods</field>

@@ -332,20 +332,20 @@ class MAVLink_message(object):
             while plen > 1 and payload[plen - 1] == nullbyte:
                 plen -= 1
 
-        # special check for encryption information. It uses rsa encryption
-        if self._header.msgId == MAVLINK_MSG_ID_ENCRYPTION_INFORMATION:
-            if mav.rsa_key_public is None:
-                raise MAVError("Public key is not set")
-            cipher_rsa = PKCS1_OAEP.new(mav.rsa_key_public)
-            self._payload = cipher_rsa.encrypt(payload)
-        else:
+        # # special check for encryption information. It uses rsa encryption
+        # if self._header.msgId == MAVLINK_MSG_ID_ENCRYPTION_INFORMATION:
+        #     if mav.rsa_key_public is None:
+        #         raise MAVError("Public key is not set")
+        #     cipher_rsa = PKCS1_OAEP.new(mav.rsa_key_public)
+        #     self._payload = cipher_rsa.encrypt(payload)
+        # else:
             # we will encrypt the payload if encryption method is set
-            if mav.payload_encryption_method != MAVLINK_ENCRYPTION_NONE:
-                if mav.payload_encryption_method in NONCE_ENCRYPTION and mav.payload_encryption_nonce is None:
-                    raise MAVError("Nonce is not set")
-                self.encrypt_payload(mav, payload[:plen])
-            else:
-                self._payload = payload[:plen]
+        if mav.payload_encryption_method != MAVLINK_ENCRYPTION_NONE:
+            if mav.payload_encryption_method in NONCE_ENCRYPTION and mav.payload_encryption_nonce is None:
+                raise MAVError("Nonce is not set")
+            self.encrypt_payload(mav, payload[:plen])
+        else:
+            self._payload = payload[:plen]
         incompat_flags = 0
         if mav.signing.sign_outgoing:
             incompat_flags |= MAVLINK_IFLAG_SIGNED
@@ -5514,14 +5514,14 @@ enums["MAV_ENC_TYPE"][8] = EnumEntry("MAV_ENC_TYPE_ENUM_END", """""")
 
 # ENCRYPTION_ACK_TYPE
 enums["ENCRYPTION_ACK_TYPE"] = {}
-ENCRYTION_ACCEPTED = 0
-enums["ENCRYPTION_ACK_TYPE"][0] = EnumEntry("ENCRYTION_ACCEPTED", """Encryption key have been verify and accepted""")
-ENCRYPTION_DENIED = 1
-enums["ENCRYPTION_ACK_TYPE"][1] = EnumEntry("ENCRYPTION_DENIED", """Encryption key verfiy failed and rejected""")
-ENCRYPTION_NOT_SUPPORT = 2
-enums["ENCRYPTION_ACK_TYPE"][2] = EnumEntry("ENCRYPTION_NOT_SUPPORT", """None of the encryption method is support""")
-ENCRYPTION_ACK_TYPE_ENUM_END = 3
-enums["ENCRYPTION_ACK_TYPE"][3] = EnumEntry("ENCRYPTION_ACK_TYPE_ENUM_END", """""")
+ENCRYTION_ACCEPTED = 1
+enums["ENCRYPTION_ACK_TYPE"][1] = EnumEntry("ENCRYTION_ACCEPTED", """Encryption key have been verify and accepted""")
+ENCRYPTION_DENIED = 2
+enums["ENCRYPTION_ACK_TYPE"][2] = EnumEntry("ENCRYPTION_DENIED", """Encryption key verfiy failed and rejected""")
+ENCRYPTION_NOT_SUPPORT = 3
+enums["ENCRYPTION_ACK_TYPE"][3] = EnumEntry("ENCRYPTION_NOT_SUPPORT", """None of the encryption method is support""")
+ENCRYPTION_ACK_TYPE_ENUM_END = 4
+enums["ENCRYPTION_ACK_TYPE"][4] = EnumEntry("ENCRYPTION_ACK_TYPE_ENUM_END", """""")
 
 # UAVIONIX_ADSB_OUT_DYNAMIC_STATE
 enums["UAVIONIX_ADSB_OUT_DYNAMIC_STATE"] = {}
@@ -6567,7 +6567,7 @@ MAVLINK_MSG_ID_OPEN_DRONE_ID_ARM_STATUS = 12918
 MAVLINK_MSG_ID_OPEN_DRONE_ID_MESSAGE_PACK = 12915
 MAVLINK_MSG_ID_OPEN_DRONE_ID_SYSTEM_UPDATE = 12919
 MAVLINK_MSG_ID_HYGROMETER_SENSOR = 12920
-MAVLINK_MSG_ID_ENCRYPTION_AVLIABLE_LIST = 1001
+MAVLINK_MSG_ID_ENCRYPTION_AVAILABLE_LIST = 1001
 MAVLINK_MSG_ID_ENCRYPTION_DECISION = 1002
 MAVLINK_MSG_ID_ENCRYPTION_ACK = 1003
 MAVLINK_MSG_ID_IDENTITY_VERIFY = 1004
@@ -19293,13 +19293,13 @@ class MAVLink_hygrometer_sensor_message(MAVLink_message):
 setattr(MAVLink_hygrometer_sensor_message, "name", mavlink_msg_deprecated_name_property())
 
 
-class MAVLink_encryption_avliable_list_message(MAVLink_message):
+class MAVLink_encryption_available_list_message(MAVLink_message):
     """
     Response of all support encryption methods
     """
 
-    id = MAVLINK_MSG_ID_ENCRYPTION_AVLIABLE_LIST
-    msgname = "ENCRYPTION_AVLIABLE_LIST"
+    id = MAVLINK_MSG_ID_ENCRYPTION_AVAILABLE_LIST
+    msgname = "ENCRYPTION_AVAILABLE_LIST"
     fieldnames = ["len_sup_enc", "sup_enc"]
     ordered_fieldnames = ["len_sup_enc", "sup_enc"]
     fieldtypes = ["uint8_t", "uint8_t"]
@@ -19316,10 +19316,10 @@ class MAVLink_encryption_avliable_list_message(MAVLink_message):
     instance_offset = -1
 
     def __init__(self, len_sup_enc: int, sup_enc: Sequence[int]):
-        MAVLink_message.__init__(self, MAVLink_encryption_avliable_list_message.id, MAVLink_encryption_avliable_list_message.msgname)
-        self._fieldnames = MAVLink_encryption_avliable_list_message.fieldnames
-        self._instance_field = MAVLink_encryption_avliable_list_message.instance_field
-        self._instance_offset = MAVLink_encryption_avliable_list_message.instance_offset
+        MAVLink_message.__init__(self, MAVLink_encryption_available_list_message.id, MAVLink_encryption_available_list_message.msgname)
+        self._fieldnames = MAVLink_encryption_available_list_message.fieldnames
+        self._instance_field = MAVLink_encryption_available_list_message.instance_field
+        self._instance_offset = MAVLink_encryption_available_list_message.instance_offset
         self.len_sup_enc = len_sup_enc
         self.sup_enc = sup_enc
 
@@ -19329,7 +19329,7 @@ class MAVLink_encryption_avliable_list_message(MAVLink_message):
 
 # Define name on the class for backwards compatibility (it is now msgname).
 # Done with setattr to hide the class variable from mypy.
-setattr(MAVLink_encryption_avliable_list_message, "name", mavlink_msg_deprecated_name_property())
+setattr(MAVLink_encryption_available_list_message, "name", mavlink_msg_deprecated_name_property())
 
 
 class MAVLink_encryption_decision_message(MAVLink_message):
@@ -20559,7 +20559,7 @@ mavlink_map: Dict[int, Type[MAVLink_message]] = {
     MAVLINK_MSG_ID_OPEN_DRONE_ID_MESSAGE_PACK: MAVLink_open_drone_id_message_pack_message,
     MAVLINK_MSG_ID_OPEN_DRONE_ID_SYSTEM_UPDATE: MAVLink_open_drone_id_system_update_message,
     MAVLINK_MSG_ID_HYGROMETER_SENSOR: MAVLink_hygrometer_sensor_message,
-    MAVLINK_MSG_ID_ENCRYPTION_AVLIABLE_LIST: MAVLink_encryption_avliable_list_message,
+    MAVLINK_MSG_ID_ENCRYPTION_AVAILABLE_LIST: MAVLink_encryption_available_list_message,
     MAVLINK_MSG_ID_ENCRYPTION_DECISION: MAVLink_encryption_decision_message,
     MAVLINK_MSG_ID_ENCRYPTION_ACK: MAVLink_encryption_ack_message,
     MAVLINK_MSG_ID_IDENTITY_VERIFY: MAVLink_identity_verify_message,
@@ -20683,7 +20683,7 @@ class MAVLink(object):
         self.total_receive_errors = 0
         self.startup_time = time.time()
         self.signing = MAVLinkSigning()
-        self.mav20_unpacker = struct.Struct("<cBBBBBBHB")
+        self.mav20_unpacker = struct.Struct("<cHBBBBBHBB")
         self.mav10_unpacker = struct.Struct("<cBBBBB")
         self.mav20_h3_unpacker = struct.Struct("BBB")
         self.mav_csum_unpacker = struct.Struct("<H")
@@ -20890,7 +20890,7 @@ class MAVLink(object):
         nonce = None
         # decode the header
         if msgbuf[0] != PROTOCOL_MARKER_V1:
-            headerlen = 11
+            headerlen = 12
             try:
                 magic, mlen, incompat_flags, compat_flags, seq, srcSystem, srcComponent, msgIdlow, msgIdhigh, nonce_len = cast(
                     Tuple[bytes, int, int, int, int, int, int, int, int, int],
@@ -20984,12 +20984,12 @@ class MAVLink(object):
         mbuf = msgbuf[headerlen: -(2 + signature_len)]
 
         # Special process for encryption information. Which needed to be decrypted first.
-        if msgId == MAVLINK_MSG_ID_ENCRYPTION_INFORMATION:
-            if self.rsa_key_private is None:
-                raise MAVError("Unable to decrypt encryption information. No private key provided.")
-            cipher_rsa = PKCS1_OAEP.new(self.rsa_key_private)
-            mbuf = cipher_rsa.decrypt(mbuf)
-        elif self.payload_encryption_method != MAVLINK_ENCRYPTION_NONE:
+        # if msgId == MAVLINK_MSG_ID_ENCRYPTION_INFORMATION:
+        #     if self.rsa_key_private is None:
+        #         raise MAVError("Unable to decrypt encryption information. No private key provided.")
+        #     cipher_rsa = PKCS1_OAEP.new(self.rsa_key_private)
+        #     mbuf = cipher_rsa.decrypt(mbuf)
+        if self.payload_encryption_method != MAVLINK_ENCRYPTION_NONE:
             if self.payload_encryption_key is None:
                 raise MAVError("Unable to decrypt payload. No encryption key provided.")
             elif self.payload_encryption_method in NONCE_ENCRYPTION and nonce is None:
@@ -21046,7 +21046,7 @@ class MAVLink(object):
         if m._signed:
             m._link_id = msgbuf[-13]
         m._msgbuf = msgbuf
-        m._payload = msgbuf[6: -(2 + signature_len)]
+        m._payload = msgbuf[headerlen: -(2 + signature_len)]
         m._crc = crc
         m._header = MAVLink_header(msgId, incompat_flags, compat_flags, mlen, seq, srcSystem, srcComponent)
         return m
@@ -30560,7 +30560,7 @@ class MAVLink(object):
         """
         self.send(self.hygrometer_sensor_encode(id, temperature, humidity), force_mavlink1=force_mavlink1)
 
-    def encryption_avliable_list_encode(self, len_sup_enc: int, sup_enc: Sequence[int]) -> MAVLink_encryption_avliable_list_message:
+    def encryption_available_list_encode(self, len_sup_enc: int, sup_enc: Sequence[int]) -> MAVLink_encryption_available_list_message:
         """
         Response of all support encryption methods
 
@@ -30568,9 +30568,9 @@ class MAVLink(object):
         sup_enc                   : List of support encryption methods (type:uint8_t)
 
         """
-        return MAVLink_encryption_avliable_list_message(len_sup_enc, sup_enc)
+        return MAVLink_encryption_available_list_message(len_sup_enc, sup_enc)
 
-    def encryption_avliable_list_send(self, len_sup_enc: int, sup_enc: Sequence[int], force_mavlink1: bool = False) -> None:
+    def encryption_available_list_send(self, len_sup_enc: int, sup_enc: Sequence[int], force_mavlink1: bool = False) -> None:
         """
         Response of all support encryption methods
 
@@ -30578,7 +30578,7 @@ class MAVLink(object):
         sup_enc                   : List of support encryption methods (type:uint8_t)
 
         """
-        self.send(self.encryption_avliable_list_encode(len_sup_enc, sup_enc), force_mavlink1=force_mavlink1)
+        self.send(self.encryption_available_list_encode(len_sup_enc, sup_enc), force_mavlink1=force_mavlink1)
 
     def encryption_decision_encode(self, enc_method: int, len_enc_key: int, enc_key: Sequence[int]) -> MAVLink_encryption_decision_message:
         """
