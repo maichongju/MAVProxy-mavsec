@@ -20691,14 +20691,7 @@ class MAVLink(object):
         self.payload_encryption_method = MAVLINK_ENCRYPTION_NONE
         self.payload_encryption_key = None
         self.payload_encryption_nonce = None
-        self.rsa_key_public = None
-        self.rsa_key_private = None
         
-    def set_rsa_key_public(self, key: Union[RsaKey, None]):
-        self.rsa_key_public = key
-
-    def set_rsa_key_private(self, key: Union[RsaKey, None]):
-        self.rsa_key_private = key
 
     def set_payload_encryption(self, method: int, key: bytes):
         self.payload_encryption_method = method
