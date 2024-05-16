@@ -137,7 +137,7 @@ class MAVLink_header(object):
                     self.msgId & 0xFFFF,
                     self.msgId >> 16,
                     len(self.nonce),
-                    self.nonce,
+                    *self.nonce,
                 )
             else:
                 return struct.pack(
@@ -20994,6 +20994,7 @@ class MAVLink(object):
                 raise MAVError("Unable to decrypt payload. No encryption key provided.")
             elif self.payload_encryption_method in NONCE_ENCRYPTION and nonce is None:
                 raise MAVError("Unable to decrypt payload. No nonce provided.")
+
             mbuf = self._decrypt_payload(mbuf, self.payload_encryption_method, self.payload_encryption_key,
                                          nonce)
         if len(mbuf) < csize:
@@ -21046,7 +21047,8 @@ class MAVLink(object):
         if m._signed:
             m._link_id = msgbuf[-13]
         m._msgbuf = msgbuf
-        m._payload = msgbuf[headerlen: -(2 + signature_len)]
+        # m._payload = msgbuf[headerlen: -(2 + signature_len)]
+        m._payload = mbuf
         m._crc = crc
         m._header = MAVLink_header(msgId, incompat_flags, compat_flags, mlen, seq, srcSystem, srcComponent)
         return m
