@@ -1526,7 +1526,7 @@ class mavmmaplog(mavlogfile):
         pct = 0
 
         MARKER_V1 = 0xFE
-        MARKER_V2 = 0xFD
+        MARKER_V2 = 0xFC
         
         while ofs+8+6 < self.data_len:
             marker = u_ord(self.data_map[ofs+8])

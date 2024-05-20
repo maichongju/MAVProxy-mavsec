@@ -29,14 +29,14 @@ print('Using custom mavlink file')
 
 
 		
-MAVLINK_ENCRYPTION_NONE = 1
-MAVLINK_ENCRYPTION_AES_CBC = 2
-MAVLINK_ENCRYPTION_AES_CTR = 3
-MAVLINK_ENCRYPTION_RC4 = 4
-MAVLINK_ENCRYPTION_CHACHA20 = 5
-MAVLINK_ENCRYPTION_TWOFISH = 6
-MAVLINK_ENCRYPTION_PRESENT = 7
-MAVLINK_ENCRYPTION_TWINE = 8
+MAVLINK_ENCRYPTION_NONE = 0
+MAVLINK_ENCRYPTION_AES_CBC = 1
+MAVLINK_ENCRYPTION_AES_CTR = 2
+MAVLINK_ENCRYPTION_RC4 = 3
+MAVLINK_ENCRYPTION_CHACHA20 = 4
+MAVLINK_ENCRYPTION_TWOFISH = 5
+MAVLINK_ENCRYPTION_PRESENT = 6
+MAVLINK_ENCRYPTION_TWINE = 7
 
 NONCE_ENCRYPTION = [
     MAVLINK_ENCRYPTION_AES_CBC,
@@ -46,9 +46,9 @@ NONCE_ENCRYPTION = [
 
 
 PROTOCOL_MARKER_V1 = 0xFE
-PROTOCOL_MARKER_V2 = 0xFD
+PROTOCOL_MARKER_V2 = 0xFC
 HEADER_LEN_V1 = 6
-HEADER_LEN_V2 = 10
+HEADER_LEN_V2 = 12
 
 MAVLINK_SIGNATURE_BLOCK_LEN = 13
 
@@ -322,15 +322,15 @@ class MAVLink_message(object):
 
     def _pack(self, mav: "MAVLink", crc_extra: int, payload: bytes, force_mavlink1: bool = False) -> bytes:
         plen = len(payload)
-        if float(WIRE_PROTOCOL_VERSION) == 2.0 and not force_mavlink1:
-            # in MAVLink2 we can strip trailing zeros off payloads. This allows for simple
-            # variable length arrays and smaller packets
-            if sys.version_info[0] == 2:
-                nullbyte = chr(0)
-            else:
-                nullbyte = 0
-            while plen > 1 and payload[plen - 1] == nullbyte:
-                plen -= 1
+        # if float(WIRE_PROTOCOL_VERSION) == 2.0 and not force_mavlink1:
+        #     # in MAVLink2 we can strip trailing zeros off payloads. This allows for simple
+        #     # variable length arrays and smaller packets
+        #     if sys.version_info[0] == 2:
+        #         nullbyte = chr(0)
+        #     else:
+        #         nullbyte = 0
+        #     while plen > 1 and payload[plen - 1] == nullbyte:
+        #         plen -= 1
 
         # # special check for encryption information. It uses rsa encryption
         # if self._header.msgId == MAVLINK_MSG_ID_ENCRYPTION_INFORMATION:
@@ -20990,9 +20990,9 @@ class MAVLink(object):
 
             mbuf = self._decrypt_payload(mbuf, self.payload_encryption_method, self.payload_encryption_key,
                                          nonce)
-        if len(mbuf) < csize:
-            # zero pad to give right size
-            mbuf.extend([0] * (csize - len(mbuf)))
+        # if len(mbuf) < csize:
+        #     # zero pad to give right size
+        #     mbuf.extend([0] * (csize - len(mbuf)))
         if len(mbuf) < csize:
             raise MAVError("Bad message of type %s length %u needs %s" % (msgtype, len(mbuf), csize))
         mbuf = mbuf[:csize]

@@ -219,7 +219,7 @@ class MAVXML(object):
             self.command_24bit = False
             self.allow_extensions = False
         elif wire_protocol_version == PROTOCOL_2_0:
-            self.protocol_marker = 0xFD
+            self.protocol_marker = 0xFC
             self.sort_fields = True
             self.little_endian = True
             self.crc_extra = True
