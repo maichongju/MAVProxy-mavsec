@@ -97,6 +97,14 @@ class x25crc(object):
             accum = (accum >> 8) ^ (tmp << 8) ^ (tmp << 3) ^ (tmp >> 4)
         self.crc = accum
         
+def generate_nonce(encryption_method: int) -> Union[bytes, None]:
+    nonce_size = get_encryption_nonce_key_size(encryption_method)
+    if nonce_size is None:
+        return None
+    
+    # return os.urandom(nonce_size)
+    return bytes([2]*nonce_size)
+
 def get_encryption_nonce_key_size(encryption_method: int) -> Union[int, None]:
     if encryption_method in NONCE_ENCRYPTION:
         if encryption_method == MAVLINK_ENCRYPTION_AES_CBC:
@@ -106,6 +114,7 @@ def get_encryption_nonce_key_size(encryption_method: int) -> Union[int, None]:
         elif encryption_method == MAVLINK_ENCRYPTION_CHACHA20:
             return 8
     return None
+
 
 
 
@@ -301,16 +310,16 @@ class MAVLink_message(object):
         self._msgbuf += sig
         mav.signing.timestamp += 1
         
-    def encrypt_payload(self, mav: "MAVLink", payload: bytes) -> None:
+    def encrypt_payload(self, mav: "MAVLink", nonce: bytes, payload: bytes) -> None:
 
         if mav.payload_encryption_method == MAVLINK_ENCRYPTION_AES_CBC:
-            self._payload = aes_encrypt_cbc(payload, mav.payload_encryption_key, mav.payload_encryption_nonce)
+            self._payload = aes_encrypt_cbc(payload, mav.payload_encryption_key, nonce)
         elif mav.payload_encryption_method == MAVLINK_ENCRYPTION_AES_CTR:
-            self._payload = aes_encrypt_ctr(payload, mav.payload_encryption_key, mav.payload_encryption_nonce)
+            self._payload = aes_encrypt_ctr(payload, mav.payload_encryption_key, nonce)
         elif mav.payload_encryption_method == MAVLINK_ENCRYPTION_RC4:
             self._payload = rc4_encrypt(payload, mav.payload_encryption_key)
         elif mav.payload_encryption_method == MAVLINK_ENCRYPTION_CHACHA20:
-            self._payload = chacha20_encrypt(payload, mav.payload_encryption_key, mav.payload_encryption_nonce)
+            self._payload = chacha20_encrypt(payload, mav.payload_encryption_key, nonce)
         elif mav.payload_encryption_method == MAVLINK_ENCRYPTION_TWOFISH:
             self._payload = twofish_encrypt(payload, mav.payload_encryption_key)
         elif mav.payload_encryption_method == MAVLINK_ENCRYPTION_PRESENT:
@@ -319,6 +328,8 @@ class MAVLink_message(object):
             self._payload = twine_encrypt(payload, mav.payload_encryption_key)
         else:
             raise ValueError("Unsupported encryption method")
+        
+        
 
     def _pack(self, mav: "MAVLink", crc_extra: int, payload: bytes, force_mavlink1: bool = False) -> bytes:
         plen = len(payload)
@@ -341,9 +352,15 @@ class MAVLink_message(object):
         # else:
             # we will encrypt the payload if encryption method is set
         if mav.payload_encryption_method != MAVLINK_ENCRYPTION_NONE:
-            if mav.payload_encryption_method in NONCE_ENCRYPTION and mav.payload_encryption_nonce is None:
-                raise MAVError("Nonce is not set")
-            self.encrypt_payload(mav, payload[:plen])
+            
+            # nonce = generate_nonce(mav.payload_encryption_method)
+            # if mav.payload_encryption_method in NONCE_ENCRYPTION and mav.payload_encryption_nonce is None:
+            #     raise MAVError("Nonce is not set")
+            mav.set_payload_encryption_nonce(generate_nonce(mav.payload_encryption_method))
+
+            # print(f"Nonce: {nonce}")
+            self.encrypt_payload(mav,mav.payload_encryption_nonce, payload[:plen])
+            
         else:
             self._payload = payload[:plen]
         incompat_flags = 0
@@ -382,6 +399,9 @@ class MAVLink_message(object):
         self._msgbuf += struct.pack("<H", self._crc)
         if mav.signing.sign_outgoing and not force_mavlink1:
             self.sign_packet(mav)
+        # print(f"payload length: {len(self._payload)}")
+        # print(f"header: {bytearray(self._header.pack(force_mavlink1=force_mavlink1)).hex()}")
+        # print(f"msg: {bytes(self._msgbuf).hex()}")
         return bytes(self._msgbuf)
 
     def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
@@ -20685,7 +20705,7 @@ class MAVLink(object):
         self.signing = MAVLinkSigning()
         self.mav20_unpacker = struct.Struct("<cHBBBBBHBB")
         self.mav10_unpacker = struct.Struct("<cBBBBB")
-        self.mav20_h3_unpacker = struct.Struct("BBB")
+        self.mav20_h3_unpacker = struct.Struct("<BHB")
         self.mav_csum_unpacker = struct.Struct("<H")
         self.mav_sign_unpacker = struct.Struct("<IH")
         self.payload_encryption_method = MAVLINK_ENCRYPTION_NONE
@@ -20777,15 +20797,15 @@ class MAVLink(object):
             self.total_receive_errors += 1
             raise MAVError("invalid MAVLink prefix '%s'" % magic)
         self.have_prefix_error = False
-        if self.buf_len() >= 3:
-            sbuf = self.buf[self.buf_index : 3 + self.buf_index]
-            (magic, self.expected_length, incompat_flags) = cast(
-                Tuple[int, int, int],
-                self.mav20_h3_unpacker.unpack(sbuf),
+        if self.buf_len() >= 12:
+            sbuf = self.buf[self.buf_index : 12 + self.buf_index]
+            (magic, self.expected_length, incompat_flags,_,_,_,_,_,_,nonce_len) = cast(
+                Tuple[int, int, int, int, int, int, int,int,int,int,int],
+                self.mav20_unpacker.unpack(sbuf),
             )
             if magic == PROTOCOL_MARKER_V2 and (incompat_flags & MAVLINK_IFLAG_SIGNED):
                 self.expected_length += MAVLINK_SIGNATURE_BLOCK_LEN
-            self.expected_length += header_len + 2
+            self.expected_length += header_len + 2 + nonce_len
         if self.expected_length >= (header_len + 2) and self.buf_len() >= self.expected_length:
             mbuf = self.buf[self.buf_index : self.buf_index + self.expected_length]
             self.buf_index += self.expected_length

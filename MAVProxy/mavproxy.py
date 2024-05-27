@@ -79,8 +79,8 @@ mpstate = None
 
 class MPCryptoMethod(enum.Enum):
     NONE = 0
-    AES_CBC = 1
-    AES_CTR = 2
+    AESCBC = 1
+    AESCTR = 2
     RC4 = 3
     CHACHA20= 4
     TWOFISH = 5
@@ -1324,7 +1324,7 @@ if __name__ == '__main__':
     parser.add_option("--udp-timeout",dest="udp_timeout", default=0.0, type='float', help="Timeout for udp clients in seconds")
     parser.add_option("--retries", type=int, help="number of times to retry connection", default=3)
     
-    parser.add_option("--crypto", dest="crypto", type='choice', choices=['AES_CBC', 'AES_CTR', 'CHACHA20', 'RC4', 'TWOFISH', 'PRESENT' ], help="crypto method", default=None)
+    parser.add_option("--crypto", dest="crypto", type='choice', choices=['AESCBC', 'AESCTR', 'CHACHA20', 'RC4', 'TWOFISH', 'PRESENT' ], help="crypto method", default=None)
     parser.add_option("--crypto-key", dest="crypto_key", help="crypto key", default=None)
 
     (opts, args) = parser.parse_args()
@@ -1554,7 +1554,18 @@ if __name__ == '__main__':
     
     if opts.crypto is not None:
         try:
-            mpstate.master().mav.set_payload_encryption(MPCryptoMethod.get_crypto_method_value(opts.crypto), opts.crypto_key)
+            
+            if (opts.crypto_key is None):
+                print("Error: crypto key is required")
+                sys.exit(1)
+            if (len(opts.crypto) > 32):
+                print("Error: crypto method is too long")
+                sys.exit(1)
+            key = bytes(opts.crypto_key, 'utf-8')    
+            
+            print("Setting up crypto: %s" % opts.crypto)
+            
+            mpstate.master().mav.set_payload_encryption(MPCryptoMethod.get_crypto_method_value(opts.crypto), key)
         except Exception as e:
             print("Error setting up crypto: %s" % e)
             sys.exit(1)
