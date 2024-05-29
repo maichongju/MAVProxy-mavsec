@@ -20,6 +20,7 @@ import platform
 import json
 import struct
 import glob
+import enum
 
 try:
     reload
@@ -75,6 +76,23 @@ if __name__ == '__main__':
 #The MAVLink version being used (None, "1.0", "2.0")
 mavversion = None
 mpstate = None
+
+class MPCryptoMethod(enum.Enum):
+    NONE = 0
+    AESCBC = 1
+    AESCTR = 2
+    RC4 = 3
+    CHACHA20= 4
+    TWOFISH = 5
+    PRESENT = 6
+    TWINE = 7
+    
+    @classmethod
+    def get_crypto_method_value(cls, method_name: str) -> int:
+        try:
+            return cls[method_name].value
+        except KeyError:
+            raise ValueError(f"Invalid method name: {method_name}")
 
 class MPStatus(object):
     '''hold status information about the mavproxy'''
@@ -1305,11 +1323,19 @@ if __name__ == '__main__':
     parser.add_option("--default-modules", default="log,signing,wp,rally,fence,ftp,param,relay,tuneopt,arm,mode,calibration,rc,auxopt,misc,cmdlong,battery,terrain,output,adsb,layout", help='default module list')
     parser.add_option("--udp-timeout",dest="udp_timeout", default=0.0, type='float', help="Timeout for udp clients in seconds")
     parser.add_option("--retries", type=int, help="number of times to retry connection", default=3)
+    
+    parser.add_option("--crypto", dest="crypto", type='choice', choices=['AESCBC', 'AESCTR', 'CHACHA20', 'RC4', 'TWOFISH', 'PRESENT' ], help="crypto method", default=None)
+    parser.add_option("--crypto-key", dest="crypto_key", help="crypto key", default=None)
 
     (opts, args) = parser.parse_args()
     if len(args) != 0:
           print("ERROR: mavproxy takes no position arguments; got (%s)" % str(args))
           sys.exit(1)
+          
+    # crypto check
+    if opts.crypto is not None and opts.crypto_key is None:
+        print("ERROR: crypto key is required")
+        sys.exit(1)
 
     # warn people about ModemManager which interferes badly with APM and Pixhawk
     if os.path.exists("/usr/sbin/ModemManager"):
@@ -1523,9 +1549,29 @@ if __name__ == '__main__':
         open_telemetry_logs(logpath_telem, logpath_telem_raw)
     else:
         print("Note: Not saving telemetry logs")
+        
+    # setup crypto for master links
+    
+    if opts.crypto is not None:
+        try:
+            
+            if (opts.crypto_key is None):
+                print("Error: crypto key is required")
+                sys.exit(1)
+            if (len(opts.crypto) > 32):
+                print("Error: crypto method is too long")
+                sys.exit(1)
+            key = bytes(opts.crypto_key, 'utf-8')    
+            
+            print("Setting up crypto: %s" % opts.crypto)
+            
+            mpstate.master().mav.set_payload_encryption(MPCryptoMethod.get_crypto_method_value(opts.crypto), key)
+        except Exception as e:
+            print("Error setting up crypto: %s" % e)
+            sys.exit(1)
 
     # run main loop as a thread
-    mpstate.status.thread = threading.Thread(target=main_loop, name='main_loop')
+    mpstate.status.thread = threading.Thread(target=main_loop, name='main_loop') 
     mpstate.status.thread.daemon = True
     mpstate.status.thread.start()
 
