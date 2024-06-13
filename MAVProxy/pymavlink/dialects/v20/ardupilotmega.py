@@ -13,7 +13,8 @@ import struct
 import sys
 import time
 from builtins import object, range
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Type, Union, cast, TextIO
+import time
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey.RSA import RsaKey
@@ -27,6 +28,7 @@ DIALECT = "ardupilotmega"
 
 print('Using custom mavlink file')
 
+MAVLINK_SEND_LOG = True
 
 		
 MAVLINK_ENCRYPTION_NONE = 0
@@ -72,9 +74,13 @@ MAVLINK_TYPE_INT16_T = 4
 MAVLINK_TYPE_UINT32_T = 5
 MAVLINK_TYPE_INT32_T = 6
 MAVLINK_TYPE_UINT64_T = 7
-MAVLINK_TYPE_INT64_T = 8
+MAVLINK_TYPE_INT64_T = 8 
 MAVLINK_TYPE_FLOAT = 9
 MAVLINK_TYPE_DOUBLE = 10
+
+def write_log_record(file: TextIO, seq: int, msgId: int):
+    current_time = time.time_ns() // 1_000_000
+    print(f"{seq},{msgId},{current_time}", file=file)
 
 
 class x25crc(object):
@@ -399,9 +405,10 @@ class MAVLink_message(object):
         self._msgbuf += struct.pack("<H", self._crc)
         if mav.signing.sign_outgoing and not force_mavlink1:
             self.sign_packet(mav)
-        # print(f"payload length: {len(self._payload)}")
-        # print(f"header: {bytearray(self._header.pack(force_mavlink1=force_mavlink1)).hex()}")
-        # print(f"msg: {bytes(self._msgbuf).hex()}")
+
+        if MAVLINK_SEND_LOG:
+            with open("proxy_send.log", "a") as f:
+                write_log_record(f,mav.seq, self._header.msgId)
         return bytes(self._msgbuf)
 
     def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
@@ -21064,6 +21071,11 @@ class MAVLink(object):
         m._payload = mbuf
         m._crc = crc
         m._header = MAVLink_header(msgId, incompat_flags, compat_flags, mlen, seq, srcSystem, srcComponent)
+        if MAVLINK_SEND_LOG:
+            with open("proxy_recv.log", "a") as f:
+                write_log_record(f,seq, msgId)
+        # log the file 
+        
         return m
 
 
